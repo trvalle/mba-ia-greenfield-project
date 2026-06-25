@@ -453,10 +453,10 @@ async function createVideoWithPublicId(videoData: CreateVideoDto): Promise<Video
 ```
 
 **Libraries:**
-- **Option A1:** `nanoid@3.3.7` (CommonJS-compatible; v4+ is ESM-only)
-- **Option A2:** Native `crypto` (Node.js built-in, no package needed)
+- **Option A2 (Decided):** Native `crypto` (Node.js built-in, no package needed)
+- ~~Option A1: `nanoid@3.3.7` (rejected; v3 legacy, v4 ESM migration risk)~~
 
-**Decision:** **Option A, Sub-option A2** — Generate `public_id` using native Node.js `crypto.randomBytes()` with base62 encoding (12 characters, YouTube-style). Store in `videos.public_id` column with `UNIQUE NOT NULL` index. Collision handling: catch `UNIQUE` constraint violation (PostgreSQL error code 23505), retry with a new ID (up to 5 retries; collision probability is negligible). Zero external dependencies; avoids nanoid v3 legacy support and v4 ESM migration concerns. URL: `GET /videos/{public_id}`.
+**Decision:** **Option A, Sub-option A2 (NATIVE CRYPTO ONLY)** — Generate `public_id` using native Node.js `crypto.randomBytes()` with base62 encoding (12 characters, YouTube-style). Store in `videos.public_id` column with `UNIQUE NOT NULL` index. Collision handling: catch `UNIQUE` constraint violation (PostgreSQL error code 23505), retry with a new ID (up to 5 retries; collision probability is negligible). **Zero external dependencies; use native crypto exclusively.** Avoids nanoid v3 legacy support and v4 ESM migration concerns. URL: `GET /videos/{public_id}`.
 
 ---
 
@@ -673,7 +673,7 @@ export class VideoProcessor extends WorkerHost {
 | TD-03 | Storage Layout | AWS SDK v3 + single bucket + prefixes | `@aws-sdk/client-s3@3.1075.0`, `@aws-sdk/s3-request-presigner@3.1075.0` |
 | TD-04 | Worker Container | Separate `video-worker` + FFmpeg | native `child_process.spawn()` + `ffmpeg` binary |
 | TD-05 | Streaming (206) | API proxy with Range/206 (Option B) | `@nestjs/common` StreamableFile |
-| TD-06 | Unique URL | nanoid@3.3.7 (CommonJS) or native crypto base62 | `nanoid@3.3.7` OR native `crypto` |
+| TD-06 | Unique URL | native crypto base62 (12-char, zero dependencies) | native `crypto` |
 | TD-07 | Status Lifecycle | 4-state model (draft → processing → ready/failed) | BullMQ (built-in) + database schema |
 | TD-08 | Message Contract | Queue `video-processing`, job `process-video`, payload minimal, idempotency by `videoId` | `@nestjs/bullmq@11.0.4` |
 
