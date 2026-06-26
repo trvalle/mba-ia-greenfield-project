@@ -24,6 +24,9 @@ export class Video {
   @Column({ type: 'varchar', length: 500 })
   title: string;
 
+  @Column({ type: 'text', nullable: true })
+  description: string | null;
+
   @Column({ type: 'varchar', length: 20, unique: true })
   public_id: string;
 

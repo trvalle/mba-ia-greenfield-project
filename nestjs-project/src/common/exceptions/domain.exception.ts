@@ -78,3 +78,27 @@ export class QueueException extends DomainException {
     super('QUEUE_ERROR', 500, message);
   }
 }
+
+export class VideoNotFoundException extends DomainException {
+  constructor(message: string = 'Video not found') {
+    super('VIDEO_NOT_FOUND', 404, message);
+  }
+}
+
+export class VideoInvalidStatusException extends DomainException {
+  constructor(message: string) {
+    super('VIDEO_INVALID_STATUS', 400, message);
+  }
+}
+
+export class PublicIdGenerationException extends DomainException {
+  constructor(message: string) {
+    super('PUBLIC_ID_GENERATION_FAILED', 500, message);
+  }
+}
+
+export class StorageFileNotFoundException extends DomainException {
+  constructor(message: string = 'Uploaded file not found in storage') {
+    super('STORAGE_FILE_NOT_FOUND', 409, message);
+  }
+}
