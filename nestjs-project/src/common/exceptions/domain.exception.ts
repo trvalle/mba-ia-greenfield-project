@@ -48,3 +48,27 @@ export class TokenReuseDetectedException extends DomainException {
     );
   }
 }
+
+export class StorageException extends DomainException {
+  constructor(message: string) {
+    super('STORAGE_ERROR', 500, message);
+  }
+}
+
+export class BucketNotAccessibleException extends DomainException {
+  constructor() {
+    super('BUCKET_NOT_ACCESSIBLE', 500, 'Storage bucket is not accessible');
+  }
+}
+
+export class FileNotFoundException extends DomainException {
+  constructor() {
+    super('FILE_NOT_FOUND', 404, 'File not found in storage');
+  }
+}
+
+export class PresignUrlGenerationException extends DomainException {
+  constructor(message: string) {
+    super('PRESIGN_URL_GENERATION_ERROR', 500, message);
+  }
+}
