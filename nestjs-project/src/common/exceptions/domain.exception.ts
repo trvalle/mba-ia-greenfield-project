@@ -72,3 +72,9 @@ export class PresignUrlGenerationException extends DomainException {
     super('PRESIGN_URL_GENERATION_ERROR', 500, message);
   }
 }
+
+export class QueueException extends DomainException {
+  constructor(message: string) {
+    super('QUEUE_ERROR', 500, message);
+  }
+}
