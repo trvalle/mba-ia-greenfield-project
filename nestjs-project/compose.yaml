@@ -91,6 +91,6 @@ services:
         condition: service_healthy
     volumes:
       - .:/home/node/app
-    command: ["tail", "-f", "/dev/null"]
+    command: npm run start:worker
 
 
