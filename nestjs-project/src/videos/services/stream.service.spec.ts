@@ -1,11 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { Readable } from 'stream';
 import { StreamService } from './stream.service';
 import { VideosRepository } from '../repositories/videos.repository';
 import { StorageService } from '../../storage/storage.service';
 import { Video } from '../entities/video.entity';
-import { FileNotFoundException } from '../../common/exceptions/domain.exception';
+import {
+  VideoNotFoundException,
+  InvalidRangeException,
+  FileNotFoundException,
+} from '../../common/exceptions/domain.exception';
 
 describe('StreamService (Unit)', () => {
   let service: StreamService;
@@ -146,36 +149,36 @@ describe('StreamService (Unit)', () => {
       );
     });
 
-    it('should throw NotFoundException if video does not exist', async () => {
+    it('should throw VideoNotFoundException if video does not exist', async () => {
       videosRepository.findByPublicId.mockResolvedValue(null);
 
       await expect(service.streamVideo('non-existent-id')).rejects.toThrow(
-        NotFoundException,
+        VideoNotFoundException,
       );
     });
 
-    it('should throw NotFoundException if video status is not ready', async () => {
+    it('should throw VideoNotFoundException if video status is not ready', async () => {
       const video = createMockVideo({ status: 'draft' });
 
       videosRepository.findByPublicId.mockResolvedValue(video);
 
       await expect(service.streamVideo(video.public_id)).rejects.toThrow(
-        NotFoundException,
+        VideoNotFoundException,
       );
     });
 
-    it('should throw NotFoundException if storage file not found', async () => {
+    it('should throw VideoNotFoundException if storage file not found', async () => {
       const video = createMockVideo();
 
       videosRepository.findByPublicId.mockResolvedValue(video);
       storageService.headObject.mockRejectedValue(new FileNotFoundException());
 
       await expect(service.streamVideo(video.public_id)).rejects.toThrow(
-        NotFoundException,
+        VideoNotFoundException,
       );
     });
 
-    it('should throw BadRequestException for invalid range', async () => {
+    it('should throw InvalidRangeException for invalid range', async () => {
       const video = createMockVideo();
       const fileSize = 5000;
 
@@ -185,10 +188,10 @@ describe('StreamService (Unit)', () => {
       // Range start >= file size
       await expect(
         service.streamVideo(video.public_id, 'bytes=5000-5099'),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(InvalidRangeException);
     });
 
-    it('should throw BadRequestException when start > end', async () => {
+    it('should throw InvalidRangeException when start > end', async () => {
       const video = createMockVideo();
       const fileSize = 5000;
 
@@ -198,7 +201,7 @@ describe('StreamService (Unit)', () => {
       // Invalid range: start > end
       await expect(
         service.streamVideo(video.public_id, 'bytes=200-100'),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(InvalidRangeException);
     });
   });
 
@@ -269,32 +272,32 @@ describe('StreamService (Unit)', () => {
       expect(result.filename).toBe('video.mp4');
     });
 
-    it('should throw NotFoundException if video does not exist', async () => {
+    it('should throw VideoNotFoundException if video does not exist', async () => {
       videosRepository.findByPublicId.mockResolvedValue(null);
 
       await expect(service.downloadVideo('non-existent-id')).rejects.toThrow(
-        NotFoundException,
+        VideoNotFoundException,
       );
     });
 
-    it('should throw NotFoundException if video status is not ready', async () => {
+    it('should throw VideoNotFoundException if video status is not ready', async () => {
       const video = createMockVideo({ status: 'processing' });
 
       videosRepository.findByPublicId.mockResolvedValue(video);
 
       await expect(service.downloadVideo(video.public_id)).rejects.toThrow(
-        NotFoundException,
+        VideoNotFoundException,
       );
     });
 
-    it('should throw NotFoundException if storage file not found', async () => {
+    it('should throw VideoNotFoundException if storage file not found', async () => {
       const video = createMockVideo();
 
       videosRepository.findByPublicId.mockResolvedValue(video);
       storageService.headObject.mockRejectedValue(new FileNotFoundException());
 
       await expect(service.downloadVideo(video.public_id)).rejects.toThrow(
-        NotFoundException,
+        VideoNotFoundException,
       );
     });
   });

@@ -102,3 +102,15 @@ export class StorageFileNotFoundException extends DomainException {
     super('STORAGE_FILE_NOT_FOUND', 409, message);
   }
 }
+
+export class InvalidRangeException extends DomainException {
+  constructor(message: string) {
+    super('RANGE_NOT_SATISFIABLE', 416, message);
+  }
+}
+
+export class NotVideoOwnerException extends DomainException {
+  constructor(message: string = 'User does not own this channel') {
+    super('FORBIDDEN', 403, message);
+  }
+}

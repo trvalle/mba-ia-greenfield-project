@@ -1,13 +1,12 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Readable } from 'stream';
 import { StorageService } from '../../storage/storage.service';
 import { VideosRepository } from '../repositories/videos.repository';
-import { FileNotFoundException } from '../../common/exceptions/domain.exception';
+import {
+  FileNotFoundException,
+  VideoNotFoundException,
+  InvalidRangeException,
+} from '../../common/exceptions/domain.exception';
 
 /**
  * Service for streaming and downloading videos.
@@ -47,14 +46,14 @@ export class StreamService {
     const video = await this.videosRepository.findByPublicId(publicId);
     if (!video) {
       this.logger.warn(`Video not found: publicId=${publicId}`);
-      throw new NotFoundException(`Video ${publicId} not found`);
+      throw new VideoNotFoundException(`Video ${publicId} not found`);
     }
 
     if (video.status !== 'ready') {
       this.logger.warn(
         `Video not ready for streaming: publicId=${publicId}, status=${video.status}`,
       );
-      throw new NotFoundException(
+      throw new VideoNotFoundException(
         `Video ${publicId} is not ready for streaming (status: ${video.status})`,
       );
     }
@@ -71,7 +70,7 @@ export class StreamService {
         this.logger.error(
           `Storage file not found: publicId=${publicId}, storageKey=${video.storage_key}`,
         );
-        throw new NotFoundException(
+        throw new VideoNotFoundException(
           `Video file not found in storage (publicId: ${publicId})`,
         );
       }
@@ -104,7 +103,7 @@ export class StreamService {
         this.logger.warn(
           `Invalid range requested: publicId=${publicId}, range=${rangeHeader}, fileSize=${fileSize}`,
         );
-        throw new BadRequestException(
+        throw new InvalidRangeException(
           `Range not satisfiable: requested ${start}-${end}, file size ${fileSize}`,
         );
       }
@@ -169,14 +168,14 @@ export class StreamService {
     const video = await this.videosRepository.findByPublicId(publicId);
     if (!video) {
       this.logger.warn(`Video not found for download: publicId=${publicId}`);
-      throw new NotFoundException(`Video ${publicId} not found`);
+      throw new VideoNotFoundException(`Video ${publicId} not found`);
     }
 
     if (video.status !== 'ready') {
       this.logger.warn(
         `Video not ready for download: publicId=${publicId}, status=${video.status}`,
       );
-      throw new NotFoundException(
+      throw new VideoNotFoundException(
         `Video ${publicId} is not ready for download (status: ${video.status})`,
       );
     }
@@ -193,7 +192,7 @@ export class StreamService {
         this.logger.error(
           `Storage file not found: publicId=${publicId}, storageKey=${video.storage_key}`,
         );
-        throw new NotFoundException(
+        throw new VideoNotFoundException(
           `Video file not found in storage (publicId: ${publicId})`,
         );
       }

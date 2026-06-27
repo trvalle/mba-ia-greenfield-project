@@ -5,7 +5,6 @@ import {
   Param,
   UseGuards,
   HttpCode,
-  ForbiddenException,
   Request,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -14,10 +13,13 @@ import { JwtPayload } from '../../auth/auth.types';
 import { UploadService } from '../services/upload.service';
 import { UploadInitRequest } from '../dtos/upload-init.request';
 import { UploadInitResponse } from '../dtos/upload-init.response';
-import { UploadCompleteRequest } from '../dtos/upload-complete.request';
 import { UploadCompleteResponse } from '../dtos/upload-complete.response';
 import { ChannelsRepository } from '../../channels/repositories/channels.repository';
 import { VideosRepository } from '../repositories/videos.repository';
+import {
+  NotVideoOwnerException,
+  VideoNotFoundException,
+} from '../../common/exceptions/domain.exception';
 
 /**
  * Controller for video upload endpoints.
@@ -73,7 +75,7 @@ export class UploadController {
       req.user.sub,
     );
     if (!ownedChannel) {
-      throw new ForbiddenException(
+      throw new NotVideoOwnerException(
         'User does not own this channel or channel does not exist',
       );
     }
@@ -123,7 +125,7 @@ export class UploadController {
       where: { id: videoId },
     });
     if (!video) {
-      throw new ForbiddenException('Video not found');
+      throw new VideoNotFoundException(`Video with ID ${videoId} not found`);
     }
 
     // Verify user owns the video's channel
@@ -132,7 +134,7 @@ export class UploadController {
       req.user.sub,
     );
     if (!ownedChannel) {
-      throw new ForbiddenException(
+      throw new NotVideoOwnerException(
         'User does not own the channel that owns this video',
       );
     }
