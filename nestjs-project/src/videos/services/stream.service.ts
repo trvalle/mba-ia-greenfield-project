@@ -145,8 +145,8 @@ export class StreamService {
         'Content-Length': fileSize,
         'Accept-Ranges': 'bytes',
       },
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      stream: streamResult as Readable,
+
+      stream: streamResult,
     };
   }
 
@@ -213,8 +213,8 @@ export class StreamService {
       filename,
       contentType: 'video/mp4',
       contentLength: metadata.size,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      stream: streamResult as Readable,
+
+      stream: streamResult,
     };
   }
 }

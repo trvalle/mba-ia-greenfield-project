@@ -68,7 +68,6 @@ export class StreamController {
     status: 416,
     description: 'Range not satisfiable',
   })
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async stream(
     @Param('public_id') publicId: string,
     @Headers('range') rangeHeader: string | undefined,
@@ -85,7 +84,7 @@ export class StreamController {
     });
 
     // Pipe stream to response
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+
     result.stream.pipe(response);
   }
 
@@ -115,7 +114,6 @@ export class StreamController {
     status: 404,
     description: 'Video not found or not ready for download',
   })
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async download(
     @Param('public_id') publicId: string,
     @Response() response: any,
@@ -134,7 +132,7 @@ export class StreamController {
     response.setHeader('Content-Length', result.contentLength);
 
     // Pipe stream to response
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+
     result.stream.pipe(response);
   }
 }
