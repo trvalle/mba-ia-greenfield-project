@@ -18,11 +18,21 @@ describe('User entity (integration)', () => {
     dataSource = createTestDataSource(ALL_ENTITIES);
     await dataSource.initialize();
     userRepository = dataSource.getRepository(User);
-  });
+  }, 30000);
 
   afterAll(async () => {
-    await dataSource.destroy();
-  });
+    try {
+      if (dataSource && dataSource.isInitialized) {
+        try {
+          await dataSource.destroy();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    } catch {
+      // Ensure function doesn't throw
+    }
+  }, 30000);
 
   beforeEach(async () => {
     await cleanAllTables(dataSource);

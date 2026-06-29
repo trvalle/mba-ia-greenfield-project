@@ -6,6 +6,7 @@ import { StorageService } from '../../storage/storage.service';
 import { VideosRepository } from '../repositories/videos.repository';
 import { FfmpegService } from './ffmpeg.service';
 import type { VideoProcessingPayload } from '../dtos/video-processing-payload.dto';
+import type { FfprobeOutput, FfprobeStream } from './ffprobe.types';
 
 /**
  * VideoProcessingService orchestrates video processing workflow.
@@ -94,7 +95,7 @@ export class VideoProcessingService {
         );
       } finally {
         // Clean up temp file
-        await this.cleanupTempFile(tmpFile);
+        this.cleanupTempFile(tmpFile);
       }
     } catch (error) {
       this.logger.error(
@@ -143,7 +144,15 @@ export class VideoProcessingService {
   /**
    * Extract metadata from a local file using ffprobe.
    */
-  private async extractMetadataFromFile(filepath: string): Promise<any> {
+  private async extractMetadataFromFile(filepath: string): Promise<{
+    duration_seconds: number;
+    codec_video?: string;
+    codec_audio?: string;
+    resolution?: string;
+    bitrate?: number;
+    fps?: number;
+    format?: string;
+  }> {
     return new Promise((resolve, reject) => {
       const ffprobe = spawn('ffprobe', [
         '-v',
@@ -158,39 +167,46 @@ export class VideoProcessingService {
       let output = '';
       let errorOutput = '';
 
-      ffprobe.stdout.on('data', (data) => {
+      ffprobe.stdout.on('data', (data: Buffer) => {
         output += data.toString();
       });
 
-      ffprobe.stderr.on('data', (data) => {
+      ffprobe.stderr.on('data', (data: Buffer) => {
         errorOutput += data.toString();
       });
 
-      ffprobe.on('close', (code) => {
+      ffprobe.on('close', (code: number) => {
         if (code !== 0) {
           this.logger.error(`ffprobe exited with code ${code}: ${errorOutput}`);
           return reject(new BadRequestException('Invalid video file'));
         }
 
         try {
-          const probe = JSON.parse(output);
-          const format = probe.format || {};
-          const videoStream = probe.streams?.find(
-            (s: any) => s.codec_type === 'video',
+          const probe = JSON.parse(output) as FfprobeOutput;
+          const format = probe.format;
+          const videoStream: FfprobeStream | undefined = probe.streams?.find(
+            (s: FfprobeStream) => s.codec_type === 'video',
           );
-          const audioStream = probe.streams?.find(
-            (s: any) => s.codec_type === 'audio',
+          const audioStream: FfprobeStream | undefined = probe.streams?.find(
+            (s: FfprobeStream) => s.codec_type === 'audio',
           );
 
-          const duration = parseFloat(
-            format.duration || videoStream?.duration || '0',
-          );
+          const durationStr: string = format?.duration
+            ? String(format.duration)
+            : videoStream?.duration
+              ? String(videoStream.duration)
+              : '0';
+          const duration = parseFloat(durationStr);
 
           // Extract FPS
           let fps: number | undefined;
           if (videoStream?.r_frame_rate) {
             try {
-              fps = Math.round(eval(videoStream.r_frame_rate));
+              // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+              const frameRateValue = eval(videoStream.r_frame_rate);
+              if (typeof frameRateValue === 'number') {
+                fps = Math.round(frameRateValue);
+              }
             } catch {
               fps = undefined;
             }
@@ -200,14 +216,15 @@ export class VideoProcessingService {
             duration_seconds: Math.round(duration),
             codec_video: videoStream?.codec_name,
             codec_audio: audioStream?.codec_name,
-            resolution: videoStream
-              ? `${videoStream.width}x${videoStream.height}`
-              : undefined,
+            resolution:
+              videoStream && videoStream.width && videoStream.height
+                ? `${videoStream.width}x${videoStream.height}`
+                : undefined,
             bitrate: videoStream?.bit_rate
-              ? parseInt(videoStream.bit_rate, 10)
+              ? parseInt(String(videoStream.bit_rate), 10)
               : undefined,
             fps,
-            format: format.format_name,
+            format: format?.format_name,
           });
         } catch (error) {
           this.logger.error(
@@ -217,7 +234,7 @@ export class VideoProcessingService {
         }
       });
 
-      ffprobe.on('error', (error) => {
+      ffprobe.on('error', (error: Error) => {
         this.logger.error(`ffprobe spawn error: ${error.message}`);
         reject(new BadRequestException('ffprobe not available'));
       });
@@ -255,15 +272,15 @@ export class VideoProcessingService {
       const chunks: Buffer[] = [];
       let errorOutput = '';
 
-      ffmpeg.stdout.on('data', (data) => {
+      ffmpeg.stdout.on('data', (data: Buffer) => {
         chunks.push(data);
       });
 
-      ffmpeg.stderr.on('data', (data) => {
+      ffmpeg.stderr.on('data', (data: Buffer) => {
         errorOutput += data.toString();
       });
 
-      ffmpeg.on('close', (code) => {
+      ffmpeg.on('close', (code: number) => {
         if (code !== 0) {
           this.logger.error(
             `ffmpeg thumbnail generation failed: ${errorOutput}`,
@@ -273,7 +290,7 @@ export class VideoProcessingService {
         resolve(Buffer.concat(chunks));
       });
 
-      ffmpeg.on('error', (error) => {
+      ffmpeg.on('error', (error: Error) => {
         this.logger.error(`ffmpeg spawn error: ${error.message}`);
         reject(new BadRequestException('ffmpeg not available'));
       });
@@ -283,7 +300,7 @@ export class VideoProcessingService {
   /**
    * Delete temporary file, ignoring errors if file doesn't exist.
    */
-  private async cleanupTempFile(filepath: string): Promise<void> {
+  private cleanupTempFile(filepath: string): void {
     try {
       if (fs.existsSync(filepath)) {
         fs.unlinkSync(filepath);

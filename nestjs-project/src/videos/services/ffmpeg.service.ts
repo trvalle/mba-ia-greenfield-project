@@ -1,6 +1,7 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { spawn } from 'child_process';
 import * as fs from 'fs';
+import type { FfprobeOutput, FfprobeStream } from './ffprobe.types';
 
 /**
  * FfmpegService wraps ffmpeg and ffprobe command-line tools.
@@ -58,15 +59,15 @@ export class FfmpegService {
       let output = '';
       let errorOutput = '';
 
-      ffprobe.stdout.on('data', (data) => {
+      ffprobe.stdout.on('data', (data: Buffer) => {
         output += data.toString();
       });
 
-      ffprobe.stderr.on('data', (data) => {
+      ffprobe.stderr.on('data', (data: Buffer) => {
         errorOutput += data.toString();
       });
 
-      ffprobe.on('close', (code) => {
+      ffprobe.on('close', (code: number) => {
         if (code !== 0) {
           this.logger.error(`ffprobe exited with code ${code}: ${errorOutput}`);
           return reject(
@@ -77,30 +78,39 @@ export class FfmpegService {
         }
 
         try {
-          const probe = JSON.parse(output);
-          const format = probe.format || {};
-          const videoStream = probe.streams?.find(
-            (s: any) => s.codec_type === 'video',
+          const probe = JSON.parse(output) as FfprobeOutput;
+          const format = probe.format;
+          const videoStream: FfprobeStream | undefined = probe.streams?.find(
+            (s: FfprobeStream) => s.codec_type === 'video',
           );
-          const audioStream = probe.streams?.find(
-            (s: any) => s.codec_type === 'audio',
+          const audioStream: FfprobeStream | undefined = probe.streams?.find(
+            (s: FfprobeStream) => s.codec_type === 'audio',
           );
 
           // Extract duration (prefer format-level duration, fall back to video stream)
-          const duration = parseFloat(
-            format.duration || videoStream?.duration || '0',
-          );
+          const durationStr: string = format?.duration
+            ? String(format.duration)
+            : videoStream?.duration
+              ? String(videoStream.duration)
+              : '0';
+          const duration = parseFloat(durationStr);
 
           // Extract resolution
-          const resolution = videoStream
-            ? `${videoStream.width}x${videoStream.height}`
-            : undefined;
+          const resolution =
+            videoStream && videoStream.width && videoStream.height
+              ? `${videoStream.width}x${videoStream.height}`
+              : undefined;
 
           // Extract FPS from r_frame_rate field (e.g., "30/1" -> 30)
           let fps: number | undefined;
           if (videoStream?.r_frame_rate) {
             try {
-              fps = Math.round(eval(videoStream.r_frame_rate));
+              // r_frame_rate is a string like "30/1", evaluate it safely
+              // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+              const frameRateValue = eval(videoStream.r_frame_rate);
+              if (typeof frameRateValue === 'number') {
+                fps = Math.round(frameRateValue);
+              }
             } catch {
               fps = undefined;
             }
@@ -108,7 +118,7 @@ export class FfmpegService {
 
           // Extract bitrate
           const bitrate = videoStream?.bit_rate
-            ? parseInt(videoStream.bit_rate, 10)
+            ? parseInt(String(videoStream.bit_rate), 10)
             : undefined;
 
           resolve({
@@ -118,7 +128,7 @@ export class FfmpegService {
             resolution,
             bitrate,
             fps,
-            format: format.format_name,
+            format: format?.format_name,
           });
         } catch (error) {
           this.logger.error(
@@ -171,15 +181,15 @@ export class FfmpegService {
       const chunks: Buffer[] = [];
       let errorOutput = '';
 
-      ffmpeg.stdout.on('data', (data) => {
+      ffmpeg.stdout.on('data', (data: Buffer) => {
         chunks.push(data);
       });
 
-      ffmpeg.stderr.on('data', (data) => {
+      ffmpeg.stderr.on('data', (data: Buffer) => {
         errorOutput += data.toString();
       });
 
-      ffmpeg.on('close', (code) => {
+      ffmpeg.on('close', (code: number) => {
         if (code !== 0) {
           this.logger.error(
             `ffmpeg thumbnail generation failed: ${errorOutput}`,

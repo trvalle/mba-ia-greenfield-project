@@ -100,7 +100,7 @@ export class UploadService {
     channelId: string,
     request: UploadInitRequest,
   ): Promise<UploadInitResponse> {
-    let lastError: any;
+    let lastError: unknown;
     let video: Video | undefined;
 
     for (let attempt = 0; attempt < this.MAX_PUBLIC_ID_RETRIES; attempt++) {

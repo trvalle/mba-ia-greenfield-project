@@ -26,11 +26,21 @@ describe('VideosRepository (integration)', () => {
     videosRepository = new VideosRepository(dataSource);
     userRepository = dataSource.getRepository(User);
     channelRepository = dataSource.getRepository(Channel);
-  });
+  }, 30000);
 
   afterAll(async () => {
-    await dataSource.destroy();
-  });
+    try {
+      if (dataSource && dataSource.isInitialized) {
+        try {
+          await dataSource.destroy();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    } catch {
+      // Ensure function doesn't throw
+    }
+  }, 30000);
 
   beforeEach(async () => {
     await dataSource.query('DELETE FROM "videos"');

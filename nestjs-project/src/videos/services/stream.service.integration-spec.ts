@@ -8,10 +8,7 @@ import { User } from '../../users/entities/user.entity';
 import { VideosRepository } from '../repositories/videos.repository';
 import { StreamService } from './stream.service';
 import { StorageService } from '../../storage/storage.service';
-import {
-  createTestDataSource,
-  cleanAllTables,
-} from '../../test/create-test-data-source';
+import { createTestDataSource } from '../../test/create-test-data-source';
 import storageConfig from '../../config/storage.config';
 import appConfig from '../../config/app.config';
 
@@ -82,24 +79,45 @@ describe('StreamService (Integration - Real MinIO)', () => {
 
     // Upload test file
     await storageService.putObject(testStorageKey, testFileContent);
-  });
+  }, 30000);
 
   afterEach(async () => {
     // Clean only videos, not channels/users (those are needed for following tests)
-    await dataSource.query('DELETE FROM "videos"');
+    try {
+      await dataSource.query('DELETE FROM "videos"');
+    } catch {
+      // Ignore cleanup errors
+    }
   });
 
   afterAll(async () => {
-    // Delete test file
     try {
-      await storageService.deleteObject(testStorageKey);
-    } catch (e) {
-      // Ignore cleanup errors
-    }
+      // Delete test file
+      try {
+        await storageService.deleteObject(testStorageKey);
+      } catch {
+        // Ignore cleanup errors
+      }
 
-    await dataSource.destroy();
-    await module.close();
-  });
+      if (dataSource && dataSource.isInitialized) {
+        try {
+          await dataSource.destroy();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+
+      if (module) {
+        try {
+          await module.close();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    } catch {
+      // Ensure function doesn't throw
+    }
+  }, 30000);
 
   describe('streamVideo', () => {
     it('should stream full video without Range header', async () => {

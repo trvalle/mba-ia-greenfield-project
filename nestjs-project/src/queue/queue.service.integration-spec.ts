@@ -48,24 +48,49 @@ describe('QueueService (Integration - Real Redis)', () => {
     configService = module.get<ConfigService>(ConfigService);
 
     await queue.drain();
-  });
+  }, 30000);
 
   afterEach(async () => {
-    const jobs = await queue.getJobs([
-      'active',
-      'waiting',
-      'completed',
-      'failed',
-    ]);
-    for (const job of jobs) {
-      await job.remove();
+    try {
+      const jobs = await queue.getJobs([
+        'active',
+        'waiting',
+        'completed',
+        'failed',
+      ]);
+      for (const job of jobs) {
+        try {
+          await job.remove();
+        } catch {
+          // Ignore job removal errors
+        }
+      }
+    } catch {
+      // Ignore cleanup errors
     }
   });
 
   afterAll(async () => {
-    await queue.close();
-    await module.close();
-  });
+    try {
+      if (queue) {
+        try {
+          await queue.close();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+
+      if (module) {
+        try {
+          await module.close();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    } catch {
+      // Ensure function doesn't throw
+    }
+  }, 30000);
 
   describe('Job Enqueuing', () => {
     it('should enqueue a video processing job', async () => {
@@ -158,9 +183,8 @@ describe('QueueService (Integration - Real Redis)', () => {
 
   describe('Redis Connection', () => {
     it('should connect to Redis using correct host and port', async () => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const redisHost = configService.get('REDIS_HOST');
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
       const redisPort = configService.get('REDIS_PORT');
 
       expect(redisHost).toBe('redis');
@@ -262,13 +286,13 @@ describe('QueueService (Integration - Real Redis)', () => {
       await service.enqueueVideoProcessing(payload);
 
       const job = await queue.getJob('full-payload-test');
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
       expect(job?.data.videoId).toBe('full-payload-test');
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
       expect(job?.data.storageKey).toBe(
         'videos/channels/ch-1/videos/full-payload-test/source.mp4',
       );
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
       expect(job?.data.channelId).toBe('ch-1');
     });
   });

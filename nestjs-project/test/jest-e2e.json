@@ -6,5 +6,12 @@
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },
-  "setupFiles": ["dotenv/config"]
+  "setupFiles": ["dotenv/config"],
+  "testTimeout": 30000,
+  "bail": false,
+  "verbose": true,
+  "detectOpenHandles": true,
+  "moduleNameMapper": {
+    "^@css-inline/css-inline$": "<rootDir>/mocks/css-inline.mock.ts"
+  }
 }

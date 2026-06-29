@@ -1,5 +1,5 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
+import { Test, TestingModule } from '@nestjs/testing';
 import { SwaggerModule } from '@nestjs/swagger';
 import request from 'supertest';
 import { App } from 'supertest/types';
@@ -8,12 +8,14 @@ import { DomainExceptionFilter } from '../src/common/filters/domain-exception.fi
 import { ValidationExceptionFilter } from '../src/common/filters/validation-exception.filter';
 import { buildSwaggerConfig } from '../src/swagger/swagger-document';
 
-async function createApp(withSwagger: boolean): Promise<INestApplication<App>> {
-  const moduleFixture = await Test.createTestingModule({
+async function createApp(
+  withSwagger: boolean,
+): Promise<{ app: INestApplication<App>; module: TestingModule }> {
+  const module = await Test.createTestingModule({
     imports: [AppModule],
   }).compile();
 
-  const app = moduleFixture.createNestApplication<INestApplication<App>>();
+  const app = module.createNestApplication<INestApplication<App>>();
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -35,22 +37,40 @@ async function createApp(withSwagger: boolean): Promise<INestApplication<App>> {
   }
 
   await app.init();
-  return app;
+  return { app, module };
 }
 
 describe('Swagger endpoints (e2e)', () => {
   describe('when SWAGGER_ENABLED=true', () => {
     let app: INestApplication<App>;
+    let module: TestingModule;
 
     beforeAll(async () => {
       process.env.SWAGGER_ENABLED = 'true';
-      app = await createApp(true);
-    });
+      const result = await createApp(true);
+      app = result.app;
+      module = result.module;
+    }, 30000);
 
     afterAll(async () => {
-      await app.close();
+      if (app) {
+        try {
+          await app.close();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+
+      if (module) {
+        try {
+          await module.close();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+
       delete process.env.SWAGGER_ENABLED;
-    });
+    }, 30000);
 
     it('GET /api/docs returns 200 with HTML containing the custom title', async () => {
       const res = await request(app.getHttpServer())
@@ -89,15 +109,32 @@ describe('Swagger endpoints (e2e)', () => {
 
   describe('when SWAGGER_ENABLED is not set', () => {
     let app: INestApplication<App>;
+    let module: TestingModule;
 
     beforeAll(async () => {
       delete process.env.SWAGGER_ENABLED;
-      app = await createApp(false);
-    });
+      const result = await createApp(false);
+      app = result.app;
+      module = result.module;
+    }, 30000);
 
     afterAll(async () => {
-      await app.close();
-    });
+      if (app) {
+        try {
+          await app.close();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+
+      if (module) {
+        try {
+          await module.close();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    }, 30000);
 
     it('GET /api/docs returns 404', async () => {
       await request(app.getHttpServer()).get('/api/docs').expect(404);

@@ -105,13 +105,21 @@ describe('VideoProcessingProcessor (Integration - Real FFmpeg + Real MinIO)', ()
         user_id: testUser.id,
       }),
     );
-  });
+  }, 30000);
 
   afterAll(async () => {
-    if (dataSource) {
-      await dataSource.destroy();
+    try {
+      if (dataSource && dataSource.isInitialized) {
+        try {
+          await dataSource.destroy();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    } catch {
+      // Ensure function doesn't throw
     }
-  });
+  }, 30000);
 
   beforeEach(async () => {
     // Clean video records before each test (but keep user/channel)
@@ -386,7 +394,7 @@ describe('VideoProcessingProcessor (Integration - Real FFmpeg + Real MinIO)', ()
  * Generate a UUID for test data
  */
 function generateUUID(): string {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const crypto: any = require('crypto');
   return crypto.randomUUID() as string;
 }

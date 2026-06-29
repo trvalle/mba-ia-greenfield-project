@@ -1,6 +1,6 @@
 import * as crypto from 'crypto';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
+import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { DataSource, Repository } from 'typeorm';
@@ -15,17 +15,18 @@ import { cleanAllTables } from '../src/test/create-test-data-source';
 
 describe('Auth (e2e)', () => {
   let app: INestApplication<App>;
+  let module: TestingModule;
   let dataSource: DataSource;
   let verificationTokenRepository: Repository<VerificationToken>;
   let refreshTokenRepository: Repository<RefreshToken>;
   let throttlerStorage: ThrottlerStorageService;
 
   beforeAll(async () => {
-    const moduleFixture = await Test.createTestingModule({
+    module = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
 
-    app = moduleFixture.createNestApplication();
+    app = module.createNestApplication();
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -39,16 +40,37 @@ describe('Auth (e2e)', () => {
     );
     await app.init();
 
-    dataSource = moduleFixture.get(DataSource);
+    dataSource = module.get(DataSource);
     verificationTokenRepository = dataSource.getRepository(VerificationToken);
     refreshTokenRepository = dataSource.getRepository(RefreshToken);
-    throttlerStorage =
-      moduleFixture.get<ThrottlerStorageService>(ThrottlerStorage);
-  });
+    throttlerStorage = module.get<ThrottlerStorageService>(ThrottlerStorage);
+  }, 30000);
 
   afterAll(async () => {
-    await app.close();
-  });
+    if (app) {
+      try {
+        await app.close();
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+
+    if (dataSource && dataSource.isInitialized) {
+      try {
+        await dataSource.destroy();
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+
+    if (module) {
+      try {
+        await module.close();
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+  }, 30000);
 
   beforeEach(async () => {
     await cleanAllTables(dataSource);

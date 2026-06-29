@@ -51,8 +51,13 @@ export class StorageService implements OnModuleInit {
         new HeadBucketCommand({ Bucket: this.config.bucket }),
       );
       this.logger.debug(`Bucket "${this.config.bucket}" already exists`);
-    } catch (error) {
-      const errorCode = error?.Code || error?.name;
+    } catch (error: unknown) {
+      const errorCode =
+        typeof error === 'object' && error !== null && 'Code' in error
+          ? (error as Record<string, unknown>).Code
+          : typeof error === 'object' && error !== null && 'name' in error
+            ? (error as Record<string, unknown>).name
+            : undefined;
       if (errorCode === 'NoSuchBucket' || errorCode === 'NotFound') {
         try {
           await this.s3Client.send(
@@ -146,8 +151,13 @@ export class StorageService implements OnModuleInit {
         size: response.ContentLength || 0,
         lastModified: response.LastModified,
       };
-    } catch (error) {
-      const errorCode = error?.Code || error?.name;
+    } catch (error: unknown) {
+      const errorCode =
+        typeof error === 'object' && error !== null && 'Code' in error
+          ? (error as Record<string, unknown>).Code
+          : typeof error === 'object' && error !== null && 'name' in error
+            ? (error as Record<string, unknown>).name
+            : undefined;
       if (errorCode === 'NotFound' || errorCode === 'NoSuchKey') {
         this.logger.debug(`Object not found for key: ${storageKey}`);
         throw new FileNotFoundException();
@@ -180,8 +190,13 @@ export class StorageService implements OnModuleInit {
         `Get object successful for key: ${storageKey}${rangeHeader ? ` (${rangeHeader})` : ''}`,
       );
       return response.Body as Readable;
-    } catch (error) {
-      const errorCode = error?.Code || error?.name;
+    } catch (error: unknown) {
+      const errorCode =
+        typeof error === 'object' && error !== null && 'Code' in error
+          ? (error as Record<string, unknown>).Code
+          : typeof error === 'object' && error !== null && 'name' in error
+            ? (error as Record<string, unknown>).name
+            : undefined;
       if (errorCode === 'NotFound' || errorCode === 'NoSuchKey') {
         this.logger.debug(`Object not found for key: ${storageKey}`);
         throw new FileNotFoundException();

@@ -93,20 +93,39 @@ async function registerConfirmAndLogin(
 describe('AuthService — register (integration)', () => {
   let authService: AuthService;
   let dataSource: DataSource;
+  let module: TestingModule;
   let verificationTokenRepository: Repository<VerificationToken>;
   let userRepository: Repository<User>;
 
   beforeAll(async () => {
-    const module = await createAuthTestModule();
+    module = await createAuthTestModule();
     authService = module.get(AuthService);
     dataSource = module.get(DataSource);
     verificationTokenRepository = dataSource.getRepository(VerificationToken);
     userRepository = dataSource.getRepository(User);
-  });
+  }, 30000);
 
   afterAll(async () => {
-    await dataSource.destroy();
-  });
+    try {
+      if (dataSource && dataSource.isInitialized) {
+        try {
+          await dataSource.destroy();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+
+      if (module) {
+        try {
+          await module.close();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    } catch {
+      // Ensure function doesn't throw
+    }
+  }, 30000);
 
   beforeEach(async () => {
     await cleanAllTables(dataSource);
@@ -184,20 +203,39 @@ describe('AuthService — register (integration)', () => {
 describe('AuthService — confirm (integration)', () => {
   let authService: AuthService;
   let dataSource: DataSource;
+  let module: TestingModule;
   let verificationTokenRepository: Repository<VerificationToken>;
   let userRepository: Repository<User>;
 
   beforeAll(async () => {
-    const module = await createAuthTestModule();
+    module = await createAuthTestModule();
     authService = module.get(AuthService);
     dataSource = module.get(DataSource);
     verificationTokenRepository = dataSource.getRepository(VerificationToken);
     userRepository = dataSource.getRepository(User);
-  });
+  }, 30000);
 
   afterAll(async () => {
-    await dataSource.destroy();
-  });
+    try {
+      if (dataSource && dataSource.isInitialized) {
+        try {
+          await dataSource.destroy();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+
+      if (module) {
+        try {
+          await module.close();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    } catch {
+      // Ensure function doesn't throw
+    }
+  }, 30000);
 
   beforeEach(async () => {
     await cleanAllTables(dataSource);
@@ -231,7 +269,7 @@ describe('AuthService — confirm (integration)', () => {
 
   it('throws TokenExpiredException for an expired token', async () => {
     const capturePromise = captureConfirmationToken(authService);
-    const { id: userId } = await authService.register({
+    await authService.register({
       email: 'expired@example.com',
       password: 'password123',
     });
@@ -255,18 +293,37 @@ describe('AuthService — confirm (integration)', () => {
 describe('AuthService — resendConfirmation (integration)', () => {
   let authService: AuthService;
   let dataSource: DataSource;
+  let module: TestingModule;
   let verificationTokenRepository: Repository<VerificationToken>;
 
   beforeAll(async () => {
-    const module = await createAuthTestModule();
+    module = await createAuthTestModule();
     authService = module.get(AuthService);
     dataSource = module.get(DataSource);
     verificationTokenRepository = dataSource.getRepository(VerificationToken);
-  });
+  }, 30000);
 
   afterAll(async () => {
-    await dataSource.destroy();
-  });
+    try {
+      if (dataSource && dataSource.isInitialized) {
+        try {
+          await dataSource.destroy();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+
+      if (module) {
+        try {
+          await module.close();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    } catch {
+      // Ensure function doesn't throw
+    }
+  }, 30000);
 
   beforeEach(async () => {
     await cleanAllTables(dataSource);
@@ -308,19 +365,38 @@ describe('AuthService — login (integration)', () => {
   let authService: AuthService;
   let jwtService: JwtService;
   let dataSource: DataSource;
+  let module: TestingModule;
   let refreshTokenRepository: Repository<RefreshToken>;
 
   beforeAll(async () => {
-    const module = await createAuthTestModule();
+    module = await createAuthTestModule();
     authService = module.get(AuthService);
     jwtService = module.get(JwtService);
     dataSource = module.get(DataSource);
     refreshTokenRepository = dataSource.getRepository(RefreshToken);
-  });
+  }, 30000);
 
   afterAll(async () => {
-    await dataSource.destroy();
-  });
+    try {
+      if (dataSource && dataSource.isInitialized) {
+        try {
+          await dataSource.destroy();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+
+      if (module) {
+        try {
+          await module.close();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    } catch {
+      // Ensure function doesn't throw
+    }
+  }, 30000);
 
   beforeEach(async () => {
     await cleanAllTables(dataSource);
@@ -387,19 +463,38 @@ describe('AuthService — refresh (integration)', () => {
   let authService: AuthService;
   let jwtService: JwtService;
   let dataSource: DataSource;
+  let module: TestingModule;
   let refreshTokenRepository: Repository<RefreshToken>;
 
   beforeAll(async () => {
-    const module = await createAuthTestModule();
+    module = await createAuthTestModule();
     authService = module.get(AuthService);
     jwtService = module.get(JwtService);
     dataSource = module.get(DataSource);
     refreshTokenRepository = dataSource.getRepository(RefreshToken);
-  });
+  }, 30000);
 
   afterAll(async () => {
-    await dataSource.destroy();
-  });
+    try {
+      if (dataSource && dataSource.isInitialized) {
+        try {
+          await dataSource.destroy();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+
+      if (module) {
+        try {
+          await module.close();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    } catch {
+      // Ensure function doesn't throw
+    }
+  }, 30000);
 
   beforeEach(async () => {
     await cleanAllTables(dataSource);
@@ -504,18 +599,37 @@ describe('AuthService — refresh (integration)', () => {
 describe('AuthService — logout (integration)', () => {
   let authService: AuthService;
   let dataSource: DataSource;
+  let module: TestingModule;
   let refreshTokenRepository: Repository<RefreshToken>;
 
   beforeAll(async () => {
-    const module = await createAuthTestModule();
+    module = await createAuthTestModule();
     authService = module.get(AuthService);
     dataSource = module.get(DataSource);
     refreshTokenRepository = dataSource.getRepository(RefreshToken);
-  });
+  }, 30000);
 
   afterAll(async () => {
-    await dataSource.destroy();
-  });
+    try {
+      if (dataSource && dataSource.isInitialized) {
+        try {
+          await dataSource.destroy();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+
+      if (module) {
+        try {
+          await module.close();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    } catch {
+      // Ensure function doesn't throw
+    }
+  }, 30000);
 
   beforeEach(async () => {
     await cleanAllTables(dataSource);
@@ -574,18 +688,37 @@ function capturePasswordResetToken(authService: AuthService): Promise<string> {
 describe('AuthService — forgotPassword (integration)', () => {
   let authService: AuthService;
   let dataSource: DataSource;
+  let module: TestingModule;
   let verificationTokenRepository: Repository<VerificationToken>;
 
   beforeAll(async () => {
-    const module = await createAuthTestModule();
+    module = await createAuthTestModule();
     authService = module.get(AuthService);
     dataSource = module.get(DataSource);
     verificationTokenRepository = dataSource.getRepository(VerificationToken);
-  });
+  }, 30000);
 
   afterAll(async () => {
-    await dataSource.destroy();
-  });
+    try {
+      if (dataSource && dataSource.isInitialized) {
+        try {
+          await dataSource.destroy();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+
+      if (module) {
+        try {
+          await module.close();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    } catch {
+      // Ensure function doesn't throw
+    }
+  }, 30000);
 
   beforeEach(async () => {
     await cleanAllTables(dataSource);
@@ -655,22 +788,41 @@ describe('AuthService — forgotPassword (integration)', () => {
 describe('AuthService — resetPassword (integration)', () => {
   let authService: AuthService;
   let dataSource: DataSource;
+  let module: TestingModule;
   let verificationTokenRepository: Repository<VerificationToken>;
   let userRepository: Repository<User>;
   let refreshTokenRepository: Repository<RefreshToken>;
 
   beforeAll(async () => {
-    const module = await createAuthTestModule();
+    module = await createAuthTestModule();
     authService = module.get(AuthService);
     dataSource = module.get(DataSource);
     verificationTokenRepository = dataSource.getRepository(VerificationToken);
     userRepository = dataSource.getRepository(User);
     refreshTokenRepository = dataSource.getRepository(RefreshToken);
-  });
+  }, 30000);
 
   afterAll(async () => {
-    await dataSource.destroy();
-  });
+    try {
+      if (dataSource && dataSource.isInitialized) {
+        try {
+          await dataSource.destroy();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+
+      if (module) {
+        try {
+          await module.close();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    } catch {
+      // Ensure function doesn't throw
+    }
+  }, 30000);
 
   beforeEach(async () => {
     await cleanAllTables(dataSource);

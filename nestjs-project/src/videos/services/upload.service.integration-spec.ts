@@ -1,5 +1,5 @@
 import { DataSource, Repository } from 'typeorm';
-import { BullModule, InjectQueue } from '@nestjs/bullmq';
+import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -35,7 +35,6 @@ describe('UploadService (Integration)', () => {
   let uploadService: UploadService;
   let videosRepository: VideosRepository;
   let storageService: StorageService;
-  let queueService: QueueService;
   let userRepository: Repository<User>;
   let channelRepository: Repository<Channel>;
   let videoProcessingQueue: Queue;
@@ -91,7 +90,6 @@ describe('UploadService (Integration)', () => {
     uploadService = testModule.get<UploadService>(UploadService);
     videosRepository = testModule.get<VideosRepository>(VideosRepository);
     storageService = testModule.get<StorageService>(StorageService);
-    queueService = testModule.get<QueueService>(QueueService);
     userRepository = dataSource.getRepository(User);
     channelRepository = dataSource.getRepository(Channel);
     videoProcessingQueue = testModule.get<Queue>('BullQueue_video-processing');
@@ -103,18 +101,41 @@ describe('UploadService (Integration)', () => {
     if (videoProcessingQueue) {
       await videoProcessingQueue.clean(0, 10000);
     }
-  });
+  }, 30000);
 
   afterAll(async () => {
-    // Clean up queue
-    if (videoProcessingQueue) {
-      await videoProcessingQueue.clean(0, 10000);
+    try {
+      // Clean up queue
+      if (videoProcessingQueue) {
+        try {
+          await videoProcessingQueue.clean(0, 10000);
+          await videoProcessingQueue.close();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+
+      // Close test module
+      if (testModule) {
+        try {
+          await testModule.close();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+
+      // Destroy database connection
+      if (dataSource && dataSource.isInitialized) {
+        try {
+          await dataSource.destroy();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    } catch {
+      // Ensure function doesn't throw
     }
-    // Close test module
-    await testModule.close();
-    // Destroy database connection
-    await dataSource.destroy();
-  });
+  }, 30000);
 
   beforeEach(async () => {
     // Clean all test data

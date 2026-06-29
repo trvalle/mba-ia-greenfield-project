@@ -14,14 +14,15 @@ import { VideosWorkerModule } from './videos/videos-worker.module';
  * NestJS requires a port for application.listen(), but the worker doesn't expose it publicly.
  * Port 3001 is used (not exposed outside the container network).
  */
-async function bootstrap() {
+async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(VideosWorkerModule);
   const configService = app.get(ConfigService);
   const logger = new Logger('VideoWorker');
 
   // The worker doesn't serve HTTP, but NestJS needs a port.
   // Use 3001 (internal, not exposed outside the container).
-  const port = configService.get('WORKER_PORT') || 3001;
+  const portValue = configService.get<string>('WORKER_PORT');
+  const port = portValue ? parseInt(portValue, 10) : 3001;
   await app.listen(port);
 
   logger.log(
