@@ -254,18 +254,33 @@ describe('StreamService (Integration - Real MinIO)', () => {
         'failed',
       ];
 
-      for (const status of statuses) {
+      for (let i = 0; i < statuses.length; i++) {
+        const status = statuses[i];
         const video = new Video();
         video.channel_id = testChannelId;
         video.title = `Video with status ${status}`;
         video.public_id = generatePublicId();
         video.status = status;
-        video.storage_key = testStorageKey;
+        // Use unique storage key based on loop index and timestamp
+        video.storage_key = `videos/channels/${testChannelId}/videos/status-${i}-${Date.now()}/source.mp4`;
+
+        // Upload test file for this storage key
+        await storageService.putObject(video.storage_key, testFileContent);
+
         const savedVideo = await videosRepository.save(video);
 
-        await expect(
-          service.streamVideo(savedVideo.public_id),
-        ).rejects.toThrow();
+        try {
+          await expect(
+            service.streamVideo(savedVideo.public_id),
+          ).rejects.toThrow();
+        } finally {
+          // Cleanup
+          try {
+            await storageService.deleteObject(video.storage_key);
+          } catch {
+            // Ignore cleanup errors
+          }
+        }
       }
     });
   });
@@ -354,53 +369,91 @@ describe('StreamService (Integration - Real MinIO)', () => {
     it('should handle multiple streaming requests independently', async () => {
       // Create 3 ready videos
       const videos: Video[] = [];
+      const storageKeys: string[] = [];
+
       for (let i = 0; i < 3; i++) {
+        const storageKey = `videos/channels/${testChannelId}/videos/concurrent-${i}-${Date.now()}/source.mp4`;
+        storageKeys.push(storageKey);
+
         const video = new Video();
         video.channel_id = testChannelId;
         video.title = `Concurrent Stream ${i}`;
         video.public_id = generatePublicId();
         video.status = 'ready';
-        video.storage_key = testStorageKey;
+        video.storage_key = storageKey;
+
+        // Upload test file for this storage key
+        await storageService.putObject(storageKey, testFileContent);
         videos.push(await videosRepository.save(video));
       }
 
-      // Stream all concurrently
-      const promises = videos.map((v) =>
-        service.streamVideo(v.public_id, 'bytes=0-9'),
-      );
+      try {
+        // Stream all concurrently
+        const promises = videos.map((v) =>
+          service.streamVideo(v.public_id, 'bytes=0-9'),
+        );
 
-      const results = await Promise.all(promises);
+        const results = await Promise.all(promises);
 
-      // All should succeed independently
-      results.forEach((result) => {
-        expect(result.status).toBe(206);
-        expect(result.headers['Content-Length']).toBe(10);
-      });
+        // All should succeed independently
+        results.forEach((result) => {
+          expect(result.status).toBe(206);
+          expect(result.headers['Content-Length']).toBe(10);
+        });
+      } finally {
+        // Cleanup
+        for (const key of storageKeys) {
+          try {
+            await storageService.deleteObject(key);
+          } catch {
+            // Ignore cleanup errors
+          }
+        }
+      }
     });
 
     it('should handle concurrent downloads independently', async () => {
       // Create 2 ready videos
       const videos: Video[] = [];
+      const storageKeys: string[] = [];
+
       for (let i = 0; i < 2; i++) {
+        const storageKey = `videos/channels/${testChannelId}/videos/download-${i}-${Date.now()}/source.mp4`;
+        storageKeys.push(storageKey);
+
         const video = new Video();
         video.channel_id = testChannelId;
         video.title = `Concurrent Download ${i}`;
         video.public_id = generatePublicId();
         video.status = 'ready';
-        video.storage_key = testStorageKey;
+        video.storage_key = storageKey;
+
+        // Upload test file for this storage key
+        await storageService.putObject(storageKey, testFileContent);
         videos.push(await videosRepository.save(video));
       }
 
-      // Download all concurrently
-      const promises = videos.map((v) => service.downloadVideo(v.public_id));
+      try {
+        // Download all concurrently
+        const promises = videos.map((v) => service.downloadVideo(v.public_id));
 
-      const results = await Promise.all(promises);
+        const results = await Promise.all(promises);
 
-      // All should succeed independently
-      results.forEach((result) => {
-        expect(result.contentLength).toBe(testFileContent.length);
-        expect(result.contentType).toBe('video/mp4');
-      });
+        // All should succeed independently
+        results.forEach((result) => {
+          expect(result.contentLength).toBe(testFileContent.length);
+          expect(result.contentType).toBe('video/mp4');
+        });
+      } finally {
+        // Cleanup
+        for (const key of storageKeys) {
+          try {
+            await storageService.deleteObject(key);
+          } catch {
+            // Ignore cleanup errors
+          }
+        }
+      }
     });
   });
 
@@ -412,18 +465,35 @@ describe('StreamService (Integration - Real MinIO)', () => {
         'aBcD1234EfGh',
         'a1b2c3d4e5f6',
       ];
+      const storageKeys: string[] = [];
 
-      for (const publicId of publicIds) {
+      for (let i = 0; i < publicIds.length; i++) {
+        const publicId = publicIds[i];
+        const storageKey = `videos/channels/${testChannelId}/videos/public-id-${i}-${Date.now()}/source.mp4`;
+        storageKeys.push(storageKey);
+
         const video = new Video();
         video.channel_id = testChannelId;
         video.title = `Video with public_id ${publicId}`;
         video.public_id = publicId;
         video.status = 'ready';
-        video.storage_key = testStorageKey;
+        video.storage_key = storageKey;
+
+        // Upload test file for this storage key
+        await storageService.putObject(storageKey, testFileContent);
         const savedVideo = await videosRepository.save(video);
 
         const result = await service.streamVideo(savedVideo.public_id);
         expect(result.status).toBe(200);
+      }
+
+      // Cleanup
+      for (const key of storageKeys) {
+        try {
+          await storageService.deleteObject(key);
+        } catch {
+          // Ignore cleanup errors
+        }
       }
     });
 

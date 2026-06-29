@@ -37,7 +37,7 @@ export class Video {
   })
   status: 'draft' | 'processing' | 'ready' | 'failed';
 
-  @Column({ type: 'varchar', length: 255 })
+  @Column({ type: 'varchar', length: 255, unique: true })
   storage_key: string;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
