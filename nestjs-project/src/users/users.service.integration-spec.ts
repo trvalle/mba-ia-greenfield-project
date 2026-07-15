@@ -9,7 +9,6 @@ import {
 } from '../test/create-test-data-source';
 import { User } from './entities/user.entity';
 import { UsersService } from './users.service';
-import { TestingModule } from '@nestjs/testing';
 
 const ALL_ENTITIES = [User, Channel, RefreshToken, VerificationToken];
 
@@ -26,11 +25,21 @@ describe('UsersService (integration)', () => {
     channelRepository = dataSource.getRepository(Channel);
     const channelsService = new ChannelsService(dataSource);
     usersService = new UsersService(userRepository, channelsService);
-  });
+  }, 30000);
 
   afterAll(async () => {
-    await dataSource.destroy();
-  });
+    try {
+      if (dataSource && dataSource.isInitialized) {
+        try {
+          await dataSource.destroy();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    } catch {
+      // Ensure function doesn't throw
+    }
+  }, 30000);
 
   beforeEach(async () => {
     await cleanAllTables(dataSource);

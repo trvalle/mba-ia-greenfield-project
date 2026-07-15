@@ -48,3 +48,69 @@ export class TokenReuseDetectedException extends DomainException {
     );
   }
 }
+
+export class StorageException extends DomainException {
+  constructor(message: string) {
+    super('STORAGE_ERROR', 500, message);
+  }
+}
+
+export class BucketNotAccessibleException extends DomainException {
+  constructor() {
+    super('BUCKET_NOT_ACCESSIBLE', 500, 'Storage bucket is not accessible');
+  }
+}
+
+export class FileNotFoundException extends DomainException {
+  constructor() {
+    super('FILE_NOT_FOUND', 404, 'File not found in storage');
+  }
+}
+
+export class PresignUrlGenerationException extends DomainException {
+  constructor(message: string) {
+    super('PRESIGN_URL_GENERATION_ERROR', 500, message);
+  }
+}
+
+export class QueueException extends DomainException {
+  constructor(message: string) {
+    super('QUEUE_ERROR', 500, message);
+  }
+}
+
+export class VideoNotFoundException extends DomainException {
+  constructor(message: string = 'Video not found') {
+    super('VIDEO_NOT_FOUND', 404, message);
+  }
+}
+
+export class VideoInvalidStatusException extends DomainException {
+  constructor(message: string) {
+    super('VIDEO_INVALID_STATUS', 400, message);
+  }
+}
+
+export class PublicIdGenerationException extends DomainException {
+  constructor(message: string) {
+    super('PUBLIC_ID_GENERATION_FAILED', 500, message);
+  }
+}
+
+export class StorageFileNotFoundException extends DomainException {
+  constructor(message: string = 'Uploaded file not found in storage') {
+    super('STORAGE_FILE_NOT_FOUND', 409, message);
+  }
+}
+
+export class InvalidRangeException extends DomainException {
+  constructor(message: string) {
+    super('RANGE_NOT_SATISFIABLE', 416, message);
+  }
+}
+
+export class NotVideoOwnerException extends DomainException {
+  constructor(message: string = 'User does not own this channel') {
+    super('FORBIDDEN', 403, message);
+  }
+}

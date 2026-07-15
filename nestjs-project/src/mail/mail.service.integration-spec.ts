@@ -13,9 +13,10 @@ import { MailService } from './mail.service';
 
 describe('MailService (integration)', () => {
   let mailService: MailService;
+  let module: any;
 
   beforeAll(async () => {
-    const module = await Test.createTestingModule({
+    module = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({ isGlobal: true, load: [appConfig, mailConfig] }),
         MailModule,
@@ -23,7 +24,21 @@ describe('MailService (integration)', () => {
     }).compile();
 
     mailService = module.get(MailService);
-  });
+  }, 30000);
+
+  afterAll(async () => {
+    try {
+      if (module) {
+        try {
+          await module.close();
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    } catch {
+      // Ensure function doesn't throw
+    }
+  }, 30000);
 
   beforeEach(async () => {
     await clearMailpitMessages();

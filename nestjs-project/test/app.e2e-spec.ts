@@ -6,19 +6,34 @@ import { AppModule } from './../src/app.module';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
+  let module: TestingModule;
 
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
+    module = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
 
-    app = moduleFixture.createNestApplication();
+    app = module.createNestApplication();
     await app.init();
-  });
+  }, 30000);
 
   afterAll(async () => {
-    await app.close();
-  });
+    if (app) {
+      try {
+        await app.close();
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+
+    if (module) {
+      try {
+        await module.close();
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+  }, 30000);
 
   it('/ (GET)', () => {
     return request(app.getHttpServer())

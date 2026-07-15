@@ -121,6 +121,8 @@ These settings are required in `package.json` (jest config) and `test/jest-e2e.j
 
 - `setupFiles: ["dotenv/config"]` — without this, `.env` is not loaded inside the Jest process. `DB_HOST`, `JWT_SECRET`, etc. fall back to undefined or to the host's `localhost`, breaking container-to-container DNS.
 - `testRegex: '.*\\.(spec|integration-spec)\\.ts$'` — covers both unit (`*.spec.ts`) and integration (`*.integration-spec.ts`) suffixes.
+- `moduleNameMapper` remaps `@css-inline/css-inline` to `test/mocks/css-inline.mock.ts` (pass-through stub). The real package is a native binary used by the mailer's `HandlebarsAdapter`; it fails to load under Jest in this environment, so any suite importing `MailModule` (auth, e2e) would crash without the mock. Production uses the real package at runtime.
+- `ffmpeg`/`ffprobe` are installed in the `nestjs-api` image (not only `video-worker`) because the worker's integration tests run in `nestjs-api` and invoke the real binaries.
 
 Do not add new test-file suffixes; if a new test type is needed, update the regex deliberately.
 
@@ -149,12 +151,24 @@ NestJS with standard module structure. Source lives in `src/`, compiled output i
 - Each domain feature gets its own module (e.g., `UsersModule`, `VideosModule`) registered in `AppModule`
 - Controllers handle HTTP routing; Services hold business logic; both are scoped to their module
 
+### Video pipeline (Phase 03)
+
+The video feature spans four cooperating modules plus a standalone worker process:
+
+- **Upload** (`VideosModule` → `upload.controller.ts`, `upload.service.ts`): presigned handshake. `POST /videos/upload-init` creates a `draft` Video and returns a presigned PUT URL; the client PUTs the binary directly to MinIO; `POST /videos/:id/upload-complete` verifies the object exists (`headObject`) and enqueues a processing job. `public_id` is a 12-char base62 crypto id; collisions are handled by retrying the INSERT on unique-violation (23505).
+- **Storage** (`StorageModule` → `storage.service.ts`): wraps AWS SDK v3 S3 client against MinIO. Idempotent bucket creation (`headBucket` on init). Dual endpoint: `S3_ENDPOINT_INTERNAL` (`minio:9000`) for server ops, `S3_ENDPOINT_PUBLIC` (`localhost:9000`) rewritten into presigned URLs so the browser can reach MinIO. `getObject` supports Range.
+- **Queue** (`QueueModule`): BullMQ over Redis (`host: 'redis'`), producer-only in the API. `jobId = videoId` guarantees idempotency; `attempts: 3`, exponential backoff.
+- **Worker** (`main-worker.ts` + `VideosWorkerModule`, NOT imported into `AppModule`): separate process in the `video-worker` container. Consumes the `video-processing` queue, downloads source from MinIO, runs `ffprobe`/`ffmpeg` via `child_process.spawn` (never `fluent-ffmpeg`, per TD-04) to extract metadata and generate a thumbnail, then transitions status `draft → processing → ready` (or `failed` + `error_reason` on exhausted retries).
+- **Streaming** (`stream.controller.ts`, `stream.service.ts`): `GET /videos/:public_id/stream` returns 200 (full) or 206 + `Content-Range` for Range requests, piping the MinIO stream straight to the response (no buffering). `GET /videos/:public_id/download` sets `Content-Disposition: attachment`. Both are `@Public`.
+
+All video error paths raise domain exceptions extending `DomainException` (shape `{ statusCode, error, message }`); see `docs/decisions/technical-decisions-phase-03-videos.md` for TD-01…TD-08.
+
 ## Code Conventions
 
 - **TypeScript:** `nodenext` module resolution, `ES2023` target, `strictNullChecks` on, `noImplicitAny` off
 - **Decorators:** `emitDecoratorMetadata` + `experimentalDecorators` enabled — required for NestJS DI
 - **Prettier:** single quotes, trailing commas everywhere
-- **ESLint:** `no-explicit-any` allowed; `no-floating-promises` and `no-unsafe-argument` are warnings
+- **ESLint:** `no-explicit-any` allowed; `no-floating-promises` and `no-unsafe-argument` are warnings. Production code keeps `no-unsafe-*` and `unbound-method` as errors; test files (`*.spec.ts`, `*.integration-spec.ts`, `*.e2e-spec.ts`, `test/**`) relax those via an override in `eslint.config.mjs`, since tests legitimately access `any`-typed values. Do not relax `no-unsafe-*` for production files.
 
 ## REST Conventions
 

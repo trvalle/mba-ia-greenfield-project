@@ -16,6 +16,14 @@ describe('exportSpec (integration)', () => {
     >;
   }, 30_000);
 
+  afterAll(async () => {
+    try {
+      // Cleanup is minimal for this test, but ensure no errors
+    } catch {
+      // Ignore cleanup errors
+    }
+  });
+
   it('exports a valid OpenAPI 3.x document', () => {
     expect(document.openapi).toMatch(/^3\./);
   });
