@@ -17,7 +17,10 @@
  * @param options Optional configuration (ignored in mock)
  * @returns The HTML string (unchanged)
  */
-export function inline(html: string, options?: Record<string, unknown>): string {
+export function inline(
+  html: string,
+  _options?: Record<string, unknown>,
+): string {
   return html;
 }
 
