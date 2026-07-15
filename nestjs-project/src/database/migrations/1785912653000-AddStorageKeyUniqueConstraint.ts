@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner, TableIndex } from 'typeorm';
 
-export class AddStorageKeyUniqueConstraint1785912653000
-  implements MigrationInterface
-{
+export class AddStorageKeyUniqueConstraint1785912653000 implements MigrationInterface {
   name = 'AddStorageKeyUniqueConstraint1785912653000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
