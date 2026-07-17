@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { randomBytes } from 'crypto';
+import { randomBytes, randomUUID } from 'crypto';
 import { StorageService } from '../../storage/storage.service';
 import { QueueService } from '../../queue/queue.service';
 import { VideosRepository } from '../repositories/videos.repository';
@@ -106,13 +106,20 @@ export class UploadService {
     for (let attempt = 0; attempt < this.MAX_PUBLIC_ID_RETRIES; attempt++) {
       try {
         const newVideo = new Video();
+        // Generate the UUID app-side so the definitive storage_key can be
+        // written in a single INSERT — a fixed temporary key would collide
+        // with the UNIQUE index on storage_key under concurrent uploads.
+        newVideo.id = randomUUID();
         newVideo.channel_id = channelId;
         newVideo.title = request.title;
         newVideo.description = request.description || null;
         newVideo.public_id = this.generatePublicId();
         newVideo.status = 'draft';
-        // Temporary storage_key; will be updated after save to use actual videoId
-        newVideo.storage_key = this.formatStorageKey(channelId, 'temp');
+        newVideo.storage_key = this.formatStorageKey(
+          channelId,
+          newVideo.id,
+          request.filename,
+        );
         newVideo.metadata = null;
         newVideo.size_bytes = request.sizeBytes || null;
         newVideo.thumbnail_key = null;
@@ -120,14 +127,6 @@ export class UploadService {
         newVideo.error_reason = null;
 
         video = await this.videosRepository.save(newVideo);
-
-        // Update storage_key with actual videoId
-        video.storage_key = this.formatStorageKey(
-          channelId,
-          video.id,
-          request.filename,
-        );
-        video = await this.videosRepository.save(video);
 
         this.logger.log(
           `Draft video created: videoId=${video.id}, publicId=${video.public_id}, channelId=${channelId}`,

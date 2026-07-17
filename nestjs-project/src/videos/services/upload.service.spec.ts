@@ -82,7 +82,7 @@ describe('UploadService (Unit)', () => {
       expect(result.publicId).toBe('abc123xyz789');
       expect(result.uploadUrl).toContain('localhost:9000');
       expect(result.expiresIn).toBe(3600);
-      expect(videosRepository.save).toHaveBeenCalledTimes(2); // Save draft + update storage_key
+      expect(videosRepository.save).toHaveBeenCalledTimes(1); // Single INSERT with definitive storage_key
     });
 
     it('should retry public_id generation on UNIQUE constraint violation', async () => {
@@ -100,7 +100,6 @@ describe('UploadService (Unit)', () => {
       videosRepository.save
         .mockRejectedValueOnce(uniqueError)
         .mockRejectedValueOnce(uniqueError)
-        .mockResolvedValueOnce(mockVideo as any)
         .mockResolvedValueOnce(mockVideo as any);
 
       storageService.generatePresignedPutUrl.mockResolvedValue(
@@ -112,7 +111,7 @@ describe('UploadService (Unit)', () => {
         channel_id: 'channel-uuid',
       });
 
-      expect(videosRepository.save).toHaveBeenCalledTimes(4); // 2 failed + 2 successful
+      expect(videosRepository.save).toHaveBeenCalledTimes(3); // 2 failed + 1 successful
       expect(result.publicId).toBe('success-id');
     });
 
