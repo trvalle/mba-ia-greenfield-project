@@ -6,7 +6,7 @@ date_started: 2026-06-25
 
 # Phase 03 Implementation Progress
 
-## Status: COMPLETED (All 9 Slices Implemented)
+## Status: COMPLETED (All 9 Slices Implemented + Correções Pós-Feedback de 2026-07-16)
 
 ### SI-03.0: Infrastructure Setup
 
@@ -279,7 +279,7 @@ Implemented QueueModule wrapping BullMQ over Redis (`host: 'redis'`). Producer-o
 **Implementation Notes:**
 
 - **Public ID Uniqueness:** Uses PostgreSQL UNIQUE constraint atomicity. On violation, immediately regenerate and retry without transaction rollback (error code '23505' catches the violation before transaction is poisoned)
-- **Storage Key Update:** After initial save with videoId = 'temp', actual videoId is retrieved and storage_key is updated to the final path before presigned URL generation
+- **Storage Key Generation:** ~~After initial save with videoId = 'temp', actual videoId is retrieved and storage_key is updated to the final path~~ **(revisado no feedback pós-entrega):** o UUID do vídeo é gerado na aplicação via `crypto.randomUUID()` antes do INSERT, permitindo gravar o storage_key definitivo em uma única escrita atômica — ver seção "Correções Pós-Feedback"
 - **Presigned URL Generation:** Uses storageService.generatePresignedPutUrl() which internally replaces INTERNAL endpoint with PUBLIC endpoint for client access
 - **Queue Integration:** enqueueVideoProcessing() sets jobId = videoId for idempotency (same videoId won't create duplicate jobs)
 - **Configuration:** Uses ConfigService to read PRESIGN_EXPIRATION_SECONDS from environment (default 3600 seconds)
@@ -619,6 +619,41 @@ Completed integration test suite covering all video pipeline stages:
 - Full suite executes with `--runInBand` to prevent FK/deadlock violations
 - TypeScript compilation: zero errors
 - Linting: zero violations (unsafe-argument warnings allowed in test files)
+
+### Correções Pós-Feedback (Revisão do Professor)
+
+**Status:** ✅ COMPLETED
+
+**Date Completed:** 2026-07-16
+
+**Contexto:**
+Após a entrega, a revisão apontou a suíte vermelha em dois pontos: (1) os testes de `env.validation` das fases anteriores quebraram quando as variáveis de S3 entraram como `required()` no schema Joi; (2) o teste de uploads concorrentes falhava porque o `initializeUpload` gravava um `storage_key` temporário fixo por canal, colidindo com o índice UNIQUE da migration `AddStorageKeyUniqueConstraint`.
+
+**Correções Aplicadas:**
+
+1. **Schema Joi — S3 obrigatório apenas em produção** (`src/config/env.validation.ts`, commit `d6af6ca`)
+   - Novo helper `requiredInProduction(devDefault)`: as 4 vars S3 (`S3_ENDPOINT_INTERNAL`, `S3_ENDPOINT_PUBLIC`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`) são `required()` quando `NODE_ENV=production` e recebem os defaults do `compose.yaml` em dev/test
+   - Testes das fases anteriores voltam a passar sem serem alterados; produção segue protegida contra subir silenciosamente com credencial default
+
+2. **storage_key definitivo em INSERT único** (`src/videos/services/upload.service.ts`, commit `cf6c8f0`)
+   - Eliminado o fluxo INSERT-com-chave-temp + UPDATE: o UUID do vídeo é gerado na aplicação (`crypto.randomUUID()`) e o `storage_key` definitivo (`videos/channels/{channelId}/videos/{videoId}/source.{ext}`, layout TD-03 preservado) é gravado atomicamente no primeiro e único INSERT
+   - Uploads concorrentes no mesmo canal não colidem mais no índice `idx_videos_storage_key_unique`; o retry em `23505` volta a significar exclusivamente colisão de `public_id`
+   - Unit tests ajustados para a nova contagem de `save` (1 por tentativa)
+
+3. **Robustez da suíte de migrations** (`src/database/migrations.integration-spec.ts`, commit `1c82d0a`) — descoberto durante a verificação
+   - `DROP TABLE CASCADE` não remove tipos enum; o `verification_tokens_type_enum` sobrevivia de execuções anteriores e fazia o `CREATE TYPE` da `CreateAuthTokens` falhar conforme a ordem das suítes
+   - Adicionado `DROP TYPE IF EXISTS` no `beforeAll` — a suíte agora é independente do estado inicial do banco (a migration executada não foi editada, respeitando a imutabilidade)
+
+**Verificação (Definition of Done completa):**
+
+| Critério | Resultado |
+|---|---|
+| Suíte completa `npm test -- --runInBand` | ✅ 34/34 suítes · 282/282 testes (verde 2× consecutivas) |
+| E2E `npm run test:e2e` | ✅ 3/3 suítes · 52/52 testes |
+| `npx tsc --noEmit` | ✅ exit 0 |
+| `npm run lint` | ✅ exit 0 |
+| Uploads concorrentes (5 paralelos, mesmo canal) | ✅ passa |
+| Testes `env.validation` fases 01–02 | ✅ passam sem alteração |
 
 ---
 
