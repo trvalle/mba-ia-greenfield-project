@@ -37,6 +37,13 @@ describe('Database migrations (integration)', () => {
       ),
       dataSource.query(`DROP TABLE IF EXISTS "migrations" CASCADE`),
     ]);
+
+    // DROP TABLE CASCADE does not remove enum types; drop them explicitly so
+    // CreateAuthTokens can re-run its CREATE TYPE regardless of prior DB state
+    // (e.g., enum left behind by a previous migration run or synchronize).
+    await dataSource.query(
+      `DROP TYPE IF EXISTS "public"."verification_tokens_type_enum" CASCADE`,
+    );
   }, 30000);
 
   afterAll(async () => {
