@@ -978,7 +978,7 @@ Deliver the complete video upload, processing, and streaming infrastructure — 
 |------|-------|----------|
 | `src/video-worker/ffmpeg.service.spec.ts` | Unit | ffprobe/ffmpeg spawn (mocked), output parsing, error handling |
 | `src/video-worker/ffmpeg.service.integration.spec.ts` | Integration | Real ffmpeg binary; metadata extraction correct; thumbnail generated as valid JPEG; cleanup temp files |
-| `test/worker.e2e-spec.ts` | E2E | Full job lifecycle: enqueue via API → worker processes → database updated → status='ready' |
+| `test/videos.e2e-spec.ts` (lifecycle scenario) | E2E | Full job lifecycle: enqueue via API → worker processes → database updated → status='ready' |
 
 **Dependencies:** SI-03.0 (FFmpeg binary in Dockerfile), SI-03.3 (VideoProcessor, FfmpegService)
 
@@ -1159,12 +1159,13 @@ Deliver the complete video upload, processing, and streaming infrastructure — 
 }
 ```
 
-**Response (201 Created):**
+**Response (201 Created):** _(shape as implemented — field names revised during implementation)_
 ```json
 {
   "videoId": "uuid",
-  "public_id": "abc123def456",
-  "presignedUrl": "http://localhost:9000/streamtube/videos/channels/{channel_id}/videos/{video_id}/source.mp4?X-Amz-Algorithm=...",
+  "publicId": "abc123def456",
+  "uploadUrl": "http://localhost:9000/streamtube/videos/channels/{channel_id}/videos/{video_id}/source.mp4?X-Amz-Algorithm=...",
+  "storageKey": "videos/channels/{channel_id}/videos/{video_id}/source.mp4",
   "expiresIn": 3600
 }
 ```
@@ -1183,12 +1184,15 @@ Deliver the complete video upload, processing, and streaming infrastructure — 
 **Auth:** Required (JWT)  
 **Params:** `id` = videoId (UUID)  
 
-**Response (200 OK):**
+**Response (200 OK):** _(shape as implemented — jobId omitted since jobId = videoId by design)_
 ```json
 {
   "videoId": "uuid",
+  "publicId": "abc123def456",
   "status": "processing",
-  "jobId": "uuid"
+  "duration_seconds": null,
+  "thumbnail_key": null,
+  "createdAt": "2026-06-26T10:00:00.000Z"
 }
 ```
 
@@ -1245,11 +1249,11 @@ Content-Length: 1024
 **Auth:** Public  
 **Params:** `public_id`  
 
-**Response (200 OK):**
+**Response (200 OK):** _(shape as implemented in `videos.controller.ts` / `VideoMetadataResponse`)_
 ```json
 {
   "videoId": "uuid",
-  "public_id": "abc123def456",
+  "publicId": "abc123def456",
   "title": "My Video",
   "description": "...",
   "status": "ready",

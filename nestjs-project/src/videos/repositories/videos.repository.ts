@@ -12,6 +12,13 @@ export class VideosRepository extends Repository<Video> {
     return this.findOne({ where: { public_id: publicId } });
   }
 
+  async findByPublicIdWithChannel(publicId: string): Promise<Video | null> {
+    return this.findOne({
+      where: { public_id: publicId },
+      relations: ['channel'],
+    });
+  }
+
   async findByIdAndChannelId(
     id: string,
     channelId: string,

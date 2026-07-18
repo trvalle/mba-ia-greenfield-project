@@ -10,6 +10,8 @@ import { UploadService } from './services/upload.service';
 import { UploadController } from './controllers/upload.controller';
 import { StreamService } from './services/stream.service';
 import { StreamController } from './controllers/stream.controller';
+import { VideosService } from './services/videos.service';
+import { VideosController } from './controllers/videos.controller';
 
 @Module({
   imports: [
@@ -19,8 +21,10 @@ import { StreamController } from './controllers/stream.controller';
     ChannelsModule,
     AuthModule,
   ],
-  providers: [VideosRepository, UploadService, StreamService],
-  controllers: [UploadController, StreamController],
+  providers: [VideosRepository, UploadService, StreamService, VideosService],
+  // VideosController last: its GET /videos/:public_id is a catch-all segment,
+  // so static/deeper routes (upload-init, :public_id/stream) register first
+  controllers: [UploadController, StreamController, VideosController],
   exports: [TypeOrmModule, VideosRepository, QueueModule],
 })
 export class VideosModule {}
