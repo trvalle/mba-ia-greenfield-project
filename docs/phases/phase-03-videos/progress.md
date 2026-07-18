@@ -676,7 +676,7 @@ Após a entrega, a revisão apontou a suíte vermelha em dois pontos: (1) os tes
 
 7. **Suíte de migrations restaura o bookkeeping completo** — a suíte dropava a tabela `migrations` inteira mas o `afterAll` reaplicava só 2 das 5 migrations, deixando `migration:run` quebrado após rodar os testes ("relation videos already exists"). Redesenhada para cobrir a cadeia completa (5 migrations, incluindo as de vídeos): dropa/recria todas as tabelas + enums e o `afterAll` restaura tabelas, índices nomeados (`idx_videos_*`) e as 5 rows de bookkeeping.
 
-8. **Git Flow — `main` restaurada:** o merge experimental `dev → main` foi revertido (`git revert -m 1`); a `main` remota voltou a ter conteúdo idêntico ao estado pré-desafio (`fbd1e72`), conforme a regra do enunciado de nunca tocar a `main`. A entrega é avaliável em `feature/phase-03-videos` → `dev` (PR #1 + commits subsequentes).
+8. **Git Flow — `main` restaurada:** o merge experimental `dev → main` foi desfeito e a `main` remota foi restaurada ao estado exato pré-desafio (`fbd1e72`, histórico intocado), conforme a regra do enunciado de nunca tocar a `main`. A entrega é avaliável em `feature/phase-03-videos` → `dev` (PR #1 + commits subsequentes).
 
 ---
 
