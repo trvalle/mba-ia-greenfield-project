@@ -81,7 +81,7 @@ PRESIGN_EXPIRATION_SECONDS=3600 (default, 1 hour)
 
 **Artifacts Created:**
 - `src/videos/entities/video.entity.ts` — Video entity with 13 columns (id, channel_id, title, public_id, status, storage_key, thumbnail_key, duration_seconds, metadata, size_bytes, error_reason, created_at, updated_at)
-- `src/migrations/1782430054-create-videos-table.ts` — TypeORM migration that creates videos table with all columns, foreign key constraint (channel_id → channels(id) ON DELETE CASCADE), and three indexes (UNIQUE on public_id, regular on channel_id and status)
+- `src/database/migrations/1782433349864-CreateVideosTable.ts` — TypeORM migration that creates videos table with all columns, foreign key constraint (channel_id → channels(id) ON DELETE CASCADE), and three indexes (UNIQUE on public_id, regular on channel_id and status)
 - `src/videos/repositories/videos.repository.ts` — Custom repository with CRUD methods and specialized finders (findByPublicId, findByIdAndChannelId, findByChannelId, findByStatus)
 - `src/videos/videos.module.ts` — NestJS module that imports TypeOrmModule with Video entity, provides VideosRepository, and exports for use by other modules
 - `src/videos/entities/video.entity.spec.ts` — Unit tests (5 tests) verifying entity instantiation, field types, nullable handling, metadata JSON support, and status enum values
@@ -244,18 +244,15 @@ Implemented QueueModule wrapping BullMQ over Redis (`host: 'redis'`). Producer-o
      - Test 400 when video not in draft status
      - Test 409 when file not in storage
      - Test null values for duration_seconds and thumbnail_key in response
-   - `src/videos/services/upload.service.integration-spec.ts` — Placeholder with skipped tests for future DB integration testing
-   - `test/videos/upload.e2e-spec.ts` — E2E tests (21 tests) covering:
-     - Full upload flow (init + complete with file verification)
-     - 201 response with presigned URL for authenticated user
-     - 401 for unauthenticated request
-     - 403 for user not owning channel
-     - 400 validation errors (missing title, empty title, exceeding max length, invalid UUID)
-     - 404 video not found
-     - 403 user does not own video
-     - 409 file not uploaded to storage
-     - 400 video not in draft status
-     - Authorization enforcement on both endpoints
+   - `src/videos/services/upload.service.integration-spec.ts` — Integration tests against real DB/MinIO/Redis: draft creation, public_id collision retry, complete flow with real storage/queue, authorization checks, concurrent uploads
+   - `test/videos.e2e-spec.ts` — E2E tests (16 tests, added post-audit) covering:
+     - Full upload flow via HTTP (upload-init 201 → real presigned PUT to MinIO → upload-complete 200)
+     - 401 for unauthenticated request; 403 for user not owning channel/video
+     - 400 validation error (missing title); 404 video not found; 409 file not in storage
+     - Metadata endpoint (GET /videos/:public_id): 200 draft/ready shapes, 404 unknown
+     - Streaming: 200 full, 206 with Content-Range, 416 invalid range, 404 non-ready
+     - Download with Content-Disposition: attachment
+     - Full lifecycle with the real video-worker container (upload → processing → ready → stream)
 
 **Test Results:**
 - ✅ Unit tests: 12/12 passed (src/videos/services/upload.service.spec.ts)
@@ -378,7 +375,7 @@ Both endpoints throw `VideoNotFoundException` (404) for missing or not-ready vid
 
 **Test Results:**
 - ✅ Integration tests ready to execute (5 describe blocks, 8 tests)
-- ✅ Tests use real ffmpeg/ffprobe, real PostgreSQL, mocked MinIO storage
+- ✅ Tests use real ffmpeg/ffprobe, real PostgreSQL, real MinIO storage (mock removed in commit c661f94)
 - ✅ Test isolation via database cleanup between tests
 - ✅ Test video file generated on-the-fly using ffmpeg (1-second black MP4 with silence)
 
@@ -431,7 +428,7 @@ Both endpoints throw `VideoNotFoundException` (404) for missing or not-ready vid
 
 - **Single Responsibility:** FfmpegService owns ffmpeg/ffprobe wrapping; VideoProcessingService owns orchestration; Processor owns job consumption
 - **Type Safety:** Full TypeScript coverage; VideoMetadata and VideoProcessingResult types document data contracts
-- **Testing Pyramid:** Integration tests exercise real ffmpeg, real database, mocked storage
+- **Testing Pyramid:** Integration tests exercise real ffmpeg, real database, real MinIO storage
 - **Error Handling:** Domain exceptions rethrown from services; processor logs and rethrows; BullMQ handles retry strategy
 - **Modularity:** VideosWorkerModule is independent of AppModule; can be deployed in separate container
 
@@ -654,6 +651,28 @@ Após a entrega, a revisão apontou a suíte vermelha em dois pontos: (1) os tes
 | `npm run lint` | ✅ exit 0 |
 | Uploads concorrentes (5 paralelos, mesmo canal) | ✅ passa |
 | Testes `env.validation` fases 01–02 | ✅ passam sem alteração |
+
+### Correções Pós-Auditoria (2026-07-17)
+
+**Status:** ✅ COMPLETED
+
+**Contexto:** auditoria interna completa da entrega (critérios do playbook §2/§6 + plano da fase + DoD) identificou pendências que foram corrigidas antes do reenvio.
+
+**Correções aplicadas:**
+
+1. **`validation.md` frontmatter** — `status: dirty` → `status: clean` (o corpo do relatório já declarava CLEAN; o frontmatter havia ficado desatualizado após o loop validate↔resolve).
+
+2. **Endpoint de metadata `GET /videos/:public_id`** — prometido no plano (§API Contracts, SI-03.5) e ausente no código. Implementado: `videos.controller.ts` + `videos.service.ts` + `video-metadata.response.ts` + `VideosRepository.findByPublicIdWithChannel`. Público (`@Public`), retorna o vídeo em qualquer status (permite poll de processamento), thumbnail via presigned GET. Unit tests em `videos.service.spec.ts` (4 testes).
+
+3. **E2E de vídeos `test/videos.e2e-spec.ts`** — 16 testes cobrindo o ciclo HTTP completo: upload-init (201/401/403/400), presigned PUT real ao MinIO, upload-complete (200/409/404/403), metadata (200/404), stream (200/206/416/404), download (Content-Disposition) e o ciclo de vida completo com o container video-worker real (upload → processing → ready → stream 206). O PUT usa o endpoint interno do MinIO (override de `S3_ENDPOINT_PUBLIC` no teste), pois o e2e roda dentro da rede do Compose.
+
+4. **🐛 BUG CRÍTICO: container video-worker rodava a API, não o worker** — o script `start:worker` (`nest start --exec node src/main-worker.ts`) fazia o Nest CLI executar o entrypoint default `dist/main` (API completa). Nenhum processo consumia a fila em runtime: vídeos ficavam presos em `processing` para sempre. Exposto pelo novo teste e2e de ciclo de vida. Correções:
+   - `package.json`: `start:worker` → `nest build && node --enable-source-maps dist/main-worker`
+   - `videos-worker.module.ts`: adicionados `ConfigModule.forRoot` (global, com `storageConfig`/`databaseConfig`/`queueConfig`) e `TypeOrmModule.forRootAsync` — o módulo standalone não tinha raiz de Config/DataSource e nunca havia sido bootável (o bug do script mascarava a falha de DI).
+
+5. **`progress.md` — alegações corrigidas:** caminho real da migration (`src/database/migrations/1782433349864-CreateVideosTable.ts`), testes do processor usam MinIO **real** (mock removido em `c661f94`), suíte de integração do upload é completa (não placeholder), e2e de vídeos agora existe de fato.
+
+6. **Plano — contratos alinhados ao código:** §API Contracts atualizado com os shapes reais de upload-init (`publicId`/`uploadUrl`/`storageKey`), upload-complete (sem `jobId` — jobId = videoId por design) e metadata; linha de teste do SI-03.6 aponta para o cenário de lifecycle em `test/videos.e2e-spec.ts`.
 
 ---
 
