@@ -42,7 +42,9 @@ Deliver the complete video upload, processing, and streaming infrastructure — 
   - `S3_REGION` (string, default `'us-east-1'`)
   - `PRESIGN_EXPIRATION_SECONDS` (number, default `3600`)
 
-- Update `.env.example` — add all 8 new variables with comments explaining Docker vs. presigned URL endpoints:
+  > **Revisado pós-feedback (2026-07-16):** as vars S3 marcadas como `required` acima passaram a ser obrigatórias **apenas em `NODE_ENV=production`** (helper `requiredInProduction`), com defaults do Compose em dev/test — o `required()` incondicional quebrava os testes de env.validation das fases anteriores. Ver progress.md §Correções Pós-Feedback.
+
+- Update `.env.example` — add all 9 new variables with comments explaining Docker vs. presigned URL endpoints:
   ```
   # Redis (BullMQ backend)
   REDIS_HOST=redis
@@ -72,7 +74,7 @@ Deliver the complete video upload, processing, and streaming infrastructure — 
 
 | File | Layer | Verifies |
 |------|-------|----------|
-| `src/config/env.validation.spec.ts` (existing, extended) | Unit | All 8 new S3/Redis env vars are validated by Joi schema; missing required vars fail bootstrap |
+| `src/config/env.validation.spec.ts` (existing, extended) | Unit | All 9 new S3/Redis env vars are validated by Joi schema; missing required vars fail bootstrap |
 | Docker integration test (manual or scripted) | Integration | `docker compose up` starts all 5 services (nestjs-api, db, redis, minio, video-worker) without errors; each container is healthy |
 | Worker health check (integration) | Integration | `docker compose exec video-worker redis-cli -h redis ping` returns PONG; ffmpeg binary available: `docker compose exec video-worker ffmpeg -version` exits 0 |
 
@@ -82,8 +84,8 @@ Deliver the complete video upload, processing, and streaming infrastructure — 
 
 - [ ] `docker-compose.yml` has `redis` service (image `redis:7`, port 6379) and `video-worker` service (build from Dockerfile, depends on db/redis/minio)
 - [ ] Worker Dockerfile includes `apt-get install -y ffmpeg` before final RUN
-- [ ] `env.validation.ts` schema validates all 8 new variables (Joi required or defaults); missing S3_ENDPOINT_INTERNAL causes validation error at bootstrap
-- [ ] `.env.example` documents all 8 new vars with comments explaining Docker networking
+- [ ] `env.validation.ts` schema validates all 9 new variables (Joi required or defaults); missing S3_ENDPOINT_INTERNAL causes validation error at bootstrap
+- [ ] `.env.example` documents all 9 new vars with comments explaining Docker networking
 - [ ] `npm install` completes; all 4 npm packages in `nestjs-project/node_modules/`
 - [ ] `docker compose up` succeeds; `docker compose exec video-worker ffmpeg -version` returns version info (binary present)
 
@@ -1415,7 +1417,7 @@ Linearized order: SI-03.0 → SI-03.1 → SI-03.2 → SI-03.3 → SI-03.4 → SI
 **Code & Artifacts:**
 - [ ] `docker-compose.yml` updated (redis, minio, video-worker services)
 - [ ] Worker Dockerfile with FFmpeg installed
-- [ ] `env.validation.ts` with 8 new S3/Redis/Presign env vars (Joi schema)
+- [ ] `env.validation.ts` with 9 new S3/Redis/Presign env vars (Joi schema)
 - [ ] `.env.example` with defaults and comments
 - [ ] `package.json` updated with 4 new npm packages
 - [ ] `src/videos/entities/video.entity.ts` (ORM entity)

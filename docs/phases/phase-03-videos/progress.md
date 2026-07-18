@@ -17,9 +17,9 @@ date_started: 2026-06-25
 **Artifacts Modified:**
 - `nestjs-project/compose.yaml` — added redis (redis:7), minio (minio/minio:latest), and video-worker services with complete environment configuration
 - `nestjs-project/Dockerfile.dev` — added ffmpeg installation: `apt install -y ffmpeg`
-- `nestjs-project/src/config/env.validation.ts` — added 8 Joi schema entries for Redis and S3/MinIO config
-- `nestjs-project/.env.example` — added 8 environment variables with comments explaining Docker networking (INTERNAL vs. PUBLIC)
-- `nestjs-project/.env` — added 8 environment variables matching defaults
+- `nestjs-project/src/config/env.validation.ts` — added 9 Joi schema entries for Redis and S3/MinIO config
+- `nestjs-project/.env.example` — added 9 environment variables with comments explaining Docker networking (INTERNAL vs. PUBLIC)
+- `nestjs-project/.env` — added 9 environment variables matching defaults
 - `nestjs-project/package.json` — added 4 npm packages (via npm install):
   - @nestjs/bullmq@11.0.4
   - bullmq@5.79.1
@@ -28,7 +28,7 @@ date_started: 2026-06-25
 
 **Validations Completed:**
 
-1. ✅ **Env Validation Schema** — All 8 new variables registered in Joi schema (REDIS_HOST, REDIS_PORT, S3_ENDPOINT_INTERNAL, S3_ENDPOINT_PUBLIC, S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_REGION, PRESIGN_EXPIRATION_SECONDS)
+1. ✅ **Env Validation Schema** — All 9 new variables registered in Joi schema (REDIS_HOST, REDIS_PORT, S3_ENDPOINT_INTERNAL, S3_ENDPOINT_PUBLIC, S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_REGION, PRESIGN_EXPIRATION_SECONDS)
 
 2. ✅ **Docker Build** — `docker compose build video-worker` succeeded; image includes ffmpeg (~200-300MB size increase from base image)
 
@@ -674,6 +674,10 @@ Após a entrega, a revisão apontou a suíte vermelha em dois pontos: (1) os tes
 
 6. **Plano — contratos alinhados ao código:** §API Contracts atualizado com os shapes reais de upload-init (`publicId`/`uploadUrl`/`storageKey`), upload-complete (sem `jobId` — jobId = videoId por design) e metadata; linha de teste do SI-03.6 aponta para o cenário de lifecycle em `test/videos.e2e-spec.ts`.
 
+7. **Suíte de migrations restaura o bookkeeping completo** — a suíte dropava a tabela `migrations` inteira mas o `afterAll` reaplicava só 2 das 5 migrations, deixando `migration:run` quebrado após rodar os testes ("relation videos already exists"). Redesenhada para cobrir a cadeia completa (5 migrations, incluindo as de vídeos): dropa/recria todas as tabelas + enums e o `afterAll` restaura tabelas, índices nomeados (`idx_videos_*`) e as 5 rows de bookkeeping.
+
+8. **Git Flow — `main` restaurada:** o merge experimental `dev → main` foi revertido (`git revert -m 1`); a `main` remota voltou a ter conteúdo idêntico ao estado pré-desafio (`fbd1e72`), conforme a regra do enunciado de nunca tocar a `main`. A entrega é avaliável em `feature/phase-03-videos` → `dev` (PR #1 + commits subsequentes).
+
 ---
 
 ## Phase 03 Final Status
@@ -724,9 +728,9 @@ All success criteria met for Phase 03 (Videos):
 - [x] `docker-compose.yml` has video-worker service (build from Dockerfile.dev, depends on db/redis/minio, environment vars configured, volumes mounted)
 - [x] `docker-compose.yml` has minio service (image minio/minio:latest, ports 9000/9001, console available)
 - [x] Dockerfile.dev includes `apt install -y ffmpeg` before RUN/CMD
-- [x] `env.validation.ts` has all 8 new Joi schema entries (REDIS_HOST, REDIS_PORT, S3_ENDPOINT_INTERNAL, S3_ENDPOINT_PUBLIC, S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_REGION, PRESIGN_EXPIRATION_SECONDS)
-- [x] `.env.example` has all 8 new variables with comments explaining Docker networking
-- [x] `.env` has all 8 new variables with defaults
+- [x] `env.validation.ts` has all 9 new Joi schema entries (REDIS_HOST, REDIS_PORT, S3_ENDPOINT_INTERNAL, S3_ENDPOINT_PUBLIC, S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_REGION, PRESIGN_EXPIRATION_SECONDS)
+- [x] `.env.example` has all 9 new variables with comments explaining Docker networking
+- [x] `.env` has all 9 new variables with defaults
 - [x] `npm install` completed; 4 packages in package.json and node_modules
 - [x] `docker compose build video-worker` succeeded (image ~300MB, ffmpeg available)
 - [x] `docker compose up` starts all 5 services (api, db, redis, minio, worker) without errors
